@@ -90,6 +90,11 @@ pub mod rustls_tls {
                 .dangerous()
                 .set_certificate_verifier(std::sync::Arc::new(NoCertificateVerification {}));
         }
+
+        if identity_pem.is_some() {
+            client_config.resumption = rustls::client::Resumption::disabled();
+        }
+
         Ok(client_config)
     }
 
