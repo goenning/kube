@@ -60,7 +60,7 @@ openssl = { workspace = true, optional = true }
 rustls = { workspace = true, optional = true }
 bytes = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["time", "signal", "sync", "rt"], optional = true }
-kube-core = { path = "../kube-core", version = "=3.1.0" }
+kube-core = { path = "../kube-core", version = "=4.0.0" }
 jsonpath-rust = { workspace = true, optional = true }
 tokio-util = { workspace = true, features = ["io", "codec"], optional = true }
 hyper = { workspace = true, features = ["client", "http1"], optional = true }
@@ -79,7 +79,7 @@ k8s-openapi= { workspace = true, features = [] }
 
 [dev-dependencies]
 hyper = { workspace = true, features = ["server"] }
-kube = { path = "../kube", features = ["derive", "client", "ws"], version = ">=2" }
+kube = { path = "../kube", features = ["derive", "client", "ws"], version = ">=4" }
 tempfile.workspace = true
 futures = { workspace = true, features = ["async-await"] }
 tokio = { workspace = true, features = ["full"] }

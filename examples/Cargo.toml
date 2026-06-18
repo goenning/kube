@@ -34,18 +34,19 @@ refresh = ["kube/oauth", "kube/oidc"]
 kubelet-debug = ["kube/kubelet-debug"]
 ws = ["kube/ws"]
 latest = ["k8s-openapi/latest"]
+cel = ["kube/cel"]
 
 [dev-dependencies]
 tokio-util.workspace = true
 assert-json-diff.workspace = true
-garde = { version = "0.22.0", default-features = false, features = ["derive"] }
+garde = { version = "0.23.0", default-features = false, features = ["derive"] }
 anyhow.workspace = true
 futures = { workspace = true, features = ["async-await"] }
 jsonpath-rust.workspace = true
-kube = { path = "../kube", version = "^3.1.0", default-features = false, features = [
+kube = { path = "../kube", version = "^4.0.0", default-features = false, features = [
     "admission",
 ] }
-kube-derive = { path = "../kube-derive", version = "^3.1.0", default-features = false } # only needed to opt out of schema
+kube-derive = { path = "../kube-derive", version = "^4.0.0", default-features = false } # only needed to opt out of schema
 k8s-openapi.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
@@ -102,6 +103,11 @@ path = "crd_apply.rs"
 [[example]]
 name = "crd_derive"
 path = "crd_derive.rs"
+
+[[example]]
+name = "crd_derive_cel"
+path = "crd_derive_cel.rs"
+required-features = ["cel"]
 
 [[example]]
 name = "crd_derive_schema"
