@@ -79,7 +79,7 @@ pub enum Error {
     ReadTokenFile(#[source] std::io::Error, PathBuf),
 
     /// Failed to parse token-key
-    #[error("failed to parse token-key")]
+    #[error("failed to parse token-key: {0}")]
     ParseTokenKey(#[source] serde_json::Error),
 
     /// command was missing from exec config
@@ -103,7 +103,7 @@ pub enum Error {
     ExecMissingClusterInfo,
 
     /// No valid native root CA certificates found
-    #[error("No valid native root CA certificates found")]
+    #[error("No valid native root CA certificates found: {0}")]
     NoValidNativeRootCA(#[source] std::io::Error),
 }
 
@@ -292,7 +292,7 @@ impl TryFrom<&AuthInfo> for Auth {
                 #[cfg(feature = "oidc")]
                 ProviderToken::Oidc(oidc) => {
                     return Ok(Self::RefreshableToken(RefreshableToken::Oidc(Arc::new(
-                        Mutex::new(oidc),
+                        Mutex::new(*oidc),
                     ))));
                 }
 
@@ -377,7 +377,7 @@ impl TryFrom<&AuthInfo> for Auth {
 // We need to differentiate providers because the keys/formats to store token expiration differs.
 enum ProviderToken {
     #[cfg(feature = "oidc")]
-    Oidc(oidc::Oidc),
+    Oidc(Box<oidc::Oidc>), // boxed: largest variant, keeps the enum small (clippy::large_enum_variant)
     #[cfg(not(feature = "oidc"))]
     Oidc(String),
     // "access-token", "expiry" (RFC3339)
@@ -406,7 +406,7 @@ fn token_from_provider(provider: &AuthProviderConfig) -> Result<ProviderToken, E
 fn token_from_oidc_provider(provider: &AuthProviderConfig) -> Result<ProviderToken, Error> {
     oidc::Oidc::from_config(&provider.config)
         .map_err(Error::Oidc)
-        .map(ProviderToken::Oidc)
+        .map(|t| ProviderToken::Oidc(Box::new(t)))
 }
 
 #[cfg(not(feature = "oidc"))]

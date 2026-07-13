@@ -37,13 +37,16 @@ exceptions = [
     # Pulled in via hyper-rustls when using the webpki-roots feature,
     # which is off by default.
     { allow = ["CDLA-Permissive-2.0", "MPL-2.0"], crate = "webpki-roots" },
+    # Bundled CA roots pulled in via rustls-platform-verifier (used as the
+    # default no-CA trust source on the rustls-tls stack).
+    { allow = ["CDLA-Permissive-2.0"], crate = "webpki-root-certs" },
 ]
 
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = ["https://github.com/Arnavion/k8s-openapi"]
+# allow-git = ["https://github.com/Arnavion/k8s-openapi"]
 
 [bans]
 multiple-versions = "deny"
@@ -60,3 +63,10 @@ name = "thiserror-impl"
 [[bans.skip]]
 # ahash hasn't had a release in 12mo
 name = "getrandom"
+[[bans.skip]]
+# ahash hasn't had a release in 12mo
+name = "r-efi"
+
+[[bans.skip]]
+# tungstenite needs to bump rand
+name = "rand_core"
