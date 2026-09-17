@@ -14,7 +14,7 @@ members = [
 ]
 
 [workspace.package]
-version = "4.0.0"
+version = "4.2.0"
 authors = [
   "clux <sszynrae@gmail.com>",
   "Natalie Klestrup Röijezon <nat@nullable.se>",
@@ -79,7 +79,7 @@ syn = "2.0.98"
 tame-oauth = "0.10.0"
 tempfile = "3.1.0"
 thiserror = "2.0.15"
-tokio = "1.35"
+tokio = "1.40"
 tokio-test = "0.4.0"
 tokio-tungstenite = "0.29.0"
 tokio-util = "0.7.0"
