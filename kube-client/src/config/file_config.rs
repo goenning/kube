@@ -348,6 +348,14 @@ pub struct ExecConfig {
     #[serde(skip)]
     pub drop_env: Option<Vec<String>>,
 
+    /// Text that, printed by the plugin on stderr while it runs non-interactively, means it waits
+    /// for someone who can't see it, such as a device code prompt. The plugin is stopped right
+    /// away and fails with what it printed, rather than running until its own timeout.
+    ///
+    /// This does not exist upstream and cannot be specified on disk.
+    #[serde(skip)]
+    pub stop_on_prompts: Option<Vec<String>>,
+
     /// This text is shown to the user when the executable doesn't seem to be present.
     /// For example, `brew install foo-cli` might be a good InstallHint for foo-cli on Mac OS systems.
     #[serde(rename = "installHint")]
