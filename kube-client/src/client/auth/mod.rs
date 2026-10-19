@@ -631,7 +631,11 @@ fn auth_exec(auth: &ExecConfig) -> Result<ExecCredential, Error> {
         }
     }
 
-    let out = cmd.output().map_err(Error::AuthExecStart)?;
+    let prompts = auth.stop_on_prompts.as_deref().filter(|p| !interactive && !p.is_empty());
+    let out = match prompts {
+        Some(prompts) => output_until_prompt(&mut cmd, prompts)?,
+        None => cmd.output().map_err(Error::AuthExecStart)?,
+    };
     if !out.status.success() {
         return Err(Error::AuthExecRun {
             cmd: format!("{cmd:?}"),
@@ -640,6 +644,60 @@ fn auth_exec(auth: &ExecConfig) -> Result<ExecCredential, Error> {
         });
     }
     parse_exec_credentials(&out.stdout)
+}
+
+/// Like `Command::output`, but stops the plugin as soon as it prints one of `prompts` on stderr:
+/// run non-interactively, it would wait for someone who can't see the prompt.
+fn output_until_prompt(cmd: &mut Command, prompts: &[String]) -> Result<std::process::Output, Error> {
+    use std::io::{BufRead, BufReader, Read};
+    use std::process::Stdio;
+
+    let prompts: Vec<String> = prompts.iter().map(|prompt| prompt.to_lowercase()).collect();
+    let mut child = cmd
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(Error::AuthExecStart)?;
+
+    // Read on its own thread, so a plugin filling the stdout pipe doesn't block on it
+    let mut stdout = child.stdout.take().expect("stdout is piped");
+    let stdout_reader = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = stdout.read_to_end(&mut buf);
+        buf
+    });
+
+    let mut stderr = BufReader::new(child.stderr.take().expect("stderr is piped"));
+    let mut stderr_buf = Vec::new();
+    let mut prompted = false;
+    loop {
+        let start = stderr_buf.len();
+        match stderr.read_until(b'\n', &mut stderr_buf) {
+            Ok(0) | Err(_) => break,
+            Ok(_) => {
+                let line = String::from_utf8_lossy(&stderr_buf[start..]).to_lowercase();
+                if prompts.iter().any(|prompt| line.contains(prompt.as_str())) {
+                    prompted = true;
+                    let _ = child.kill();
+                    break;
+                }
+            }
+        }
+    }
+
+    let status = child.wait().map_err(Error::AuthExecStart)?;
+    // A stopped plugin's stdout is of no use, and whatever it started could keep the pipe open
+    let stdout = if prompted {
+        Vec::new()
+    } else {
+        stdout_reader.join().unwrap_or_default()
+    };
+    Ok(std::process::Output {
+        status,
+        stdout,
+        stderr: stderr_buf,
+    })
 }
 
 /// Exec plugins are expected to emit JSON, but client-go decodes their output with a
