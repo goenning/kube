@@ -3,7 +3,7 @@ use crate::{
     params::{DeleteParams, PostParams},
     request::{Error, JSON_MIME, Request},
 };
-use jiff::{Timestamp, Unit};
+use jiff::{RoundMode, Timestamp, TimestampRound, Unit};
 use std::fmt::Debug;
 
 pub use k8s_openapi::api::autoscaling::v1::{Scale, ScaleSpec, ScaleStatus};
@@ -75,7 +75,11 @@ impl Request {
             // or b.) a rounding increment is configured (which we don't set) that does not fit into 86400 seconds (a day)
             // without any remainder.
             // `jiff::Timestamp` provides RFC3339 via `Display`, docs: https://docs.rs/jiff/latest/jiff/struct.Timestamp.html#impl-Display-for-Timestamp
-            qp.append_pair("sinceTime", &st.round(Unit::Second).unwrap().to_string());
+            // Round down like client-go; rounding up would skip lines logged later in the same second.
+            let floor = TimestampRound::new()
+                .smallest(Unit::Second)
+                .mode(RoundMode::Floor);
+            qp.append_pair("sinceTime", &st.round(floor).unwrap().to_string());
         }
 
         if let Some(tl) = &lp.tail_lines {
@@ -117,7 +121,7 @@ impl Request {
         let urlstr = qp.finish();
         // eviction body parameters are awkward, need metadata with name
         let data = serde_json::to_vec(&serde_json::json!({
-            "delete_options": ep.delete_options,
+            "deleteOptions": ep.delete_options,
             "metadata": { "name": name }
         }))
         .map_err(Error::SerializeBody)?;
@@ -420,7 +424,30 @@ mod test {
     use k8s::core::v1 as corev1;
     use k8s_openapi::api as k8s;
 
-    use crate::subresource::LogParams;
+    use crate::{
+        params::{DeleteParams, Preconditions},
+        subresource::{EvictParams, LogParams},
+    };
+
+    #[test]
+    fn evict_body_carries_delete_options() {
+        let url = corev1::Pod::url_path(&(), Some("ns"));
+        let ep = EvictParams {
+            delete_options: Some(DeleteParams {
+                preconditions: Some(Preconditions {
+                    uid: Some("u1".into()),
+                    resource_version: None,
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let req = Request::new(url).evict("mypod", &ep).unwrap();
+        let body: serde_json::Value = serde_json::from_slice(req.body()).unwrap();
+        assert_eq!(body["deleteOptions"]["preconditions"]["uid"], "u1");
+        assert_eq!(body["metadata"]["name"], "mypod");
+        assert!(body.get("delete_options").is_none());
+    }
 
     #[test]
     fn logs_all_params() {
@@ -456,6 +483,21 @@ mod test {
         assert_eq!(
             req.uri(),
             "/api/v1/namespaces/ns/pods/mypod/log?&sinceTime=2023-10-19T13%3A14%3A26Z" // cross-referenced with kubectl
+        );
+    }
+
+    #[test]
+    fn logs_since_time_rounds_down() {
+        let url = corev1::Pod::url_path(&(), Some("ns"));
+        let date: Timestamp = "2023-10-19T13:14:26.7Z".parse().unwrap();
+        let lp = LogParams {
+            since_time: Some(date),
+            ..Default::default()
+        };
+        let req = Request::new(url).logs("mypod", &lp).unwrap();
+        assert_eq!(
+            req.uri(),
+            "/api/v1/namespaces/ns/pods/mypod/log?&sinceTime=2023-10-19T13%3A14%3A26Z"
         );
     }
 }

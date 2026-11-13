@@ -98,9 +98,9 @@ jobs:
       - name: Install nightly
         uses: dtolnay/rust-toolchain@nightly
       - name: cargo doc
-        run: cargo doc --no-deps --all-features
+        run: cargo doc --no-deps --all-features --workspace --exclude e2e --exclude kube-examples
         env:
-          RUSTDOCFLAGS: --cfg docsrs
+          RUSTDOCFLAGS: --cfg docsrs -D rustdoc::broken_intra_doc_links
 
   minimal-versions:
     runs-on: ubuntu-latest
@@ -160,7 +160,7 @@ jobs:
       matrix:
         # Run these tests against older clusters as well
         k8s:
-          - "v1.32" # MK8SV
+          - "v1.33" # MK8SV
           - "latest"
     steps:
       - uses: actions/checkout@v7
@@ -184,7 +184,9 @@ jobs:
       - name: Import test images into k3d
         run: |
           docker pull busybox:stable
-          k3d image import busybox:stable -c kube --mode direct
+          # Docker 29 (ubuntu-26.04) exports the full multi-arch index, which ctr cannot import without the other platforms
+          docker save --platform linux/amd64 busybox:stable -o busybox.tar
+          k3d image import busybox.tar -c kube --mode direct
 
       # Real CI work starts here
       - name: Build workspace
@@ -230,7 +232,7 @@ jobs:
 
       - uses: nolar/setup-k3d-k3s@v1
         with:
-          channel: "v1.32" # MK8SV
+          channel: "v1.33" # MK8SV
           # k3d-kube
           k3d-name: kube
           k3d-args: "--no-lb --no-rollback --k3s-arg --disable=traefik,servicelb,metrics-server@server:*"
