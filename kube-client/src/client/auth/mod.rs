@@ -628,7 +628,10 @@ fn auth_exec(auth: &ExecConfig) -> Result<ExecCredential, Error> {
         }
     }
 
-    let prompts = auth.stop_on_prompts.as_deref().filter(|p| !interactive && !p.is_empty());
+    let prompts = auth
+        .stop_on_prompts
+        .as_deref()
+        .filter(|p| !interactive && !p.is_empty());
     let out = match prompts {
         Some(prompts) => output_until_prompt(&mut cmd, prompts)?,
         None => cmd.output().map_err(Error::AuthExecStart)?,
@@ -645,8 +648,10 @@ fn auth_exec(auth: &ExecConfig) -> Result<ExecCredential, Error> {
 /// Like `Command::output`, but stops the plugin as soon as it prints one of `prompts` on stderr:
 /// run non-interactively, it would wait for someone who can't see the prompt.
 fn output_until_prompt(cmd: &mut Command, prompts: &[String]) -> Result<std::process::Output, Error> {
-    use std::io::{BufRead, BufReader, Read};
-    use std::process::Stdio;
+    use std::{
+        io::{BufRead, BufReader, Read},
+        process::Stdio,
+    };
 
     let prompts: Vec<String> = prompts.iter().map(|prompt| prompt.to_lowercase()).collect();
     let mut child = cmd
